@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>n8n Chat Interface</title>
+
+    <!-- n8n Chat CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+
+    <style>
+        /* Reset and base styles for iframe compatibility */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            overflow: hidden;
+            /* Prevent scrollbars in iframe */
+        }
+
+        /* Container for the chat */
+        #chat-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Chat widget container */
+        #n8n-chat {
+            width: 100%;
+            height: 100%;
+            flex: 1;
+        }
+
+        /* Loading state */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f8f9fa;
+            font-family: inherit;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e3e3e3;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: #6c757d;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* Error state */
+        .error-container {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f8f9fa;
+            font-family: inherit;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            color: #dc3545;
+            margin-bottom: 16px;
+        }
+
+        .error-title {
+            color: #dc3545;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .error-message {
+            color: #6c757d;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 400px;
+        }
+
+        .retry-button {
+            margin-top: 16px;
+            padding: 8px 16px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .retry-button:hover {
+            background-color: #0052a3;
+        }
+
+        /* Status indicator for Genesys Cloud */
+        .status-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #28a745;
+            z-index: 1000;
+            opacity: 0.7;
+        }
+
+        .status-indicator.connecting {
+            background-color: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-indicator.error {
+            background-color: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.7;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.7;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Status indicator -->
+    <div id="status-indicator" class="status-indicator connecting"></div>
+
+    <!-- Loading state -->
+    <div id="loading-container" class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing chat interface...<br>Please wait a moment.</div>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-container" class="error-container">
+        <div class="error-icon">⚠️</div>
+        <div class="error-title">Chat Unavailable</div>
+        <div id="error-message" class="error-message">
+            Unable to initialize the chat widget. Please check your configuration and try again.
+        </div>
+        <button id="retry-button" class="retry-button" onclick="location.reload()">
+            Retry
+        </button>
+    </div>
+
+    <!-- Chat container -->
+    <div id="chat-container">
+        <div id="n8n-chat"></div>
+    </div>
+
+    <!-- External configuration -->
+    <script src="config.js"></script>
+
+    <!-- Main application script -->
+    <script type="module">
+        class N8nChatApp {
+            constructor() {
+                this.config = null;
+                this.isInitialized = false;
+                this.retryCount = 0;
+                this.maxRetries = 3;
+
+                this.loadingContainer = document.getElementById('loading-container');
+                this.errorContainer = document.getElementById('error-container');
+                this.chatContainer = document.getElementById('chat-container');
+                this.statusIndicator = document.getElementById('status-indicator');
+                this.errorMessage = document.getElementById('error-message');
+
+                this.init();
+            }
+
+            async init() {
+                try {
+                    this.updateStatus('connecting');
+                    await this.loadConfiguration();
+                    await this.initializeChat();
+                    this.setupEventListeners();
+                    this.updateStatus('connected');
+                } catch (error) {
+                    this.handleError(error);
+                }
+            }
+
+            loadConfiguration() {
+                return new Promise((resolve, reject) => {
+                    // Wait for config to be available
+                    const checkConfig = () => {
+                        if (window.n8nChatConfig) {
+                            this.config = this.mergeConfigurations();
+                            resolve();
+                        } else {
+                            setTimeout(checkConfig, 100);
+                        }
+                    };
+                    checkConfig();
+
+                    // Timeout after 5 seconds
+                    setTimeout(() => {
+                        if (!this.config) {
+                            reject(new Error('Configuration not loaded'));
+                        }
+                    }, 5000);
+                });
+            }
+
+            mergeConfigurations() {
+                const baseConfig = window.n8nChatConfig || {};
+                const urlParams = new URLSearchParams(window.location.search);
+
+                // Override webhook URL from URL parameter if provided
+                const webhookFromParam = urlParams.get('webhookUrl');
+                if (webhookFromParam) {
+                    baseConfig.webhookUrl = decodeURIComponent(webhookFromParam);
+                }
+
+                // Apply environment-specific settings
+                if (window.environmentConfig) {
+                    const envSettings = window.environmentConfig.getEnvironmentSettings();
+                    Object.assign(baseConfig, envSettings);
+                }
+
+                // Apply custom styles if defined
+                if (baseConfig.customStyles) {
+                    this.applyCustomStyles(baseConfig.customStyles);
+                }
+
+                return baseConfig;
+            }
+
+            applyCustomStyles(styles) {
+                const root = document.documentElement;
+                Object.entries(styles).forEach(([property, value]) => {
+                    root.style.setProperty(property, value);
+                });
+            }
+
+            async initializeChat() {
+                // Validate configuration
+                if (!this.config.webhookUrl || this.config.webhookUrl === 'YOUR_PRODUCTION_WEBHOOK_URL') {
+                    throw new Error('Webhook URL not configured. Please set your n8n webhook URL in the configuration.');
+                }
+
+                // Import n8n chat module
+                const { createChat } = await import('https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js');
+
+                // Create chat with configuration
+                createChat({
+                    target: '#n8n-chat',
+                    ...this.config
+                });
+
+                this.isInitialized = true;
+                this.hideLoading();
+
+                // Send ready event to Genesys Cloud
+                this.sendGenesysEvent('chatReady', {
+                    config: this.config,
+                    timestamp: new Date().toISOString()
+                });
+
+                console.log('n8n Chat initialized successfully', {
+                    webhookUrl: this.config.webhookUrl,
+                    mode: this.config.mode
+                });
+            }
+
+            setupEventListeners() {
+                // Handle iframe communication
+                window.addEventListener('message', (event) => {
+                    this.handleParentMessage(event);
+                });
+
+                // Handle visibility changes
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        this.sendGenesysEvent('chatVisible', {});
+                    } else {
+                        this.sendGenesysEvent('chatHidden', {});
+                    }
+                });
+
+                // Handle errors
+                window.addEventListener('error', (event) => {
+                    this.handleError(new Error(`JavaScript error: ${event.error?.message || event.message}`));
+                });
+
+                // Handle unhandled promise rejections
+                window.addEventListener('unhandledrejection', (event) => {
+                    this.handleError(new Error(`Unhandled promise rejection: ${event.reason}`));
+                });
+            }
+
+            handleParentMessage(event) {
+                const { data } = event;
+
+                if (data && typeof data === 'object') {
+                    switch (data.type) {
+                        case 'updateConfig':
+                            this.updateConfiguration(data.config);
+                            break;
+                        case 'getStatus':
+                            this.sendStatusToParent();
+                            break;
+                        case 'ping':
+                            this.sendPongToParent();
+                            break;
+                        default:
+                            // Forward unknown messages to n8n chat if needed
+                            break;
+                    }
+                }
+            }
+
+            updateConfiguration(newConfig) {
+                if (newConfig && typeof newConfig === 'object') {
+                    Object.assign(this.config, newConfig);
+                    console.log('Configuration updated:', newConfig);
+
+                    // Apply new custom styles if provided
+                    if (newConfig.customStyles) {
+                        this.applyCustomStyles(newConfig.customStyles);
+                    }
+                }
+            }
+
+            sendStatusToParent() {
+                this.sendMessageToParent({
+                    type: 'n8nChat_status',
+                    data: {
+                        isInitialized: this.isInitialized,
+                        config: this.config,
+                        retryCount: this.retryCount
+                    }
+                });
+            }
+
+            sendPongToParent() {
+                this.sendMessageToParent({
+                    type: 'n8nChat_pong',
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            sendGenesysEvent(eventType, data) {
+                if (window.genesysCloudConfig && window.genesysCloudConfig.enableGenesysIntegration) {
+                    window.genesysCloudConfig.sendGenesysEvent(eventType, data);
+                }
+
+                // Also send via direct message
+                this.sendMessageToParent({
+                    type: `n8nChat_${eventType}`,
+                    data: data,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            sendMessageToParent(message) {
+                if (window.parent !== window) {
+                    window.parent.postMessage(message, '*');
+                }
+            }
+
+            handleError(error) {
+                console.error('n8n Chat Error:', error);
+
+                this.updateStatus('error');
+                this.hideLoading();
+
+                let errorMessage = 'An unexpected error occurred.';
+
+                if (error.message.includes('Webhook URL not configured')) {
+                    errorMessage = 'Chat service is not properly configured. Please contact your administrator.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Unable to connect to the chat service. Please check your internet connection.';
+                } else if (error.message.includes('Configuration not loaded')) {
+                    errorMessage = 'Failed to load chat configuration. Please refresh the page.';
+                }
+
+                this.showError(errorMessage);
+
+                // Send error event to Genesys Cloud
+                this.sendGenesysEvent('chatError', {
+                    error: error.message,
+                    retryCount: this.retryCount
+                });
+            }
+
+            showError(message) {
+                this.errorMessage.textContent = message;
+                this.errorContainer.style.display = 'flex';
+                this.chatContainer.style.display = 'none';
+            }
+
+            hideLoading() {
+                this.loadingContainer.style.display = 'none';
+            }
+
+            updateStatus(status) {
+                this.statusIndicator.className = `status-indicator ${status}`;
+            }
+        }
+
+        // Initialize the chat application
+        document.addEventListener('DOMContentLoaded', () => {
+            new N8nChatApp();
+        });
+
+        // Fallback for when DOM is already loaded
+        if (document.readyState !== 'loading') {
+            new N8nChatApp();
+        }
+    </script>
+</body>
+
+</html>
