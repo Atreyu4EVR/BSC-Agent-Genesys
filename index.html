@@ -4,10 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>n8n Chat Interface</title>
+    <title>BSC Agent Chat Interface</title>
 
     <!-- n8n Chat CSS -->
     <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+
+    <!-- Ensure iframe compatibility -->
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors *;">
 
     <style>
         /* Reset and base styles for iframe compatibility */
@@ -167,7 +170,7 @@
     <!-- Loading state -->
     <div id="loading-container" class="loading-container">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Initializing chat...</div>
+        <div class="loading-text">Initializing BSC Agent...</div>
     </div>
 
     <!-- Error state -->
@@ -206,7 +209,8 @@
             // Custom i18n configuration
             i18n: {
                 en: {
-                    title: 'Support Chat 💬',
+                    title: 'BSC Agent 💬',
+                    subtitle: "I'm here to help with your questions!",
                     footer: 'Powered by n8n',
                     getStarted: 'Start Conversation',
                     inputPlaceholder: 'Type your message here...',
@@ -266,13 +270,13 @@
                 document.getElementById('loading-container').style.display = 'none';
 
                 // Log successful initialization
-                console.log('n8n Chat initialized successfully', {
+                console.log('BSC Agent Chat initialized successfully', {
                     webhookUrl: webhookUrl,
                     mode: finalConfig.mode
                 });
 
             } catch (error) {
-                console.error('Failed to initialize n8n chat:', error);
+                console.error('Failed to initialize BSC Agent chat:', error);
 
                 // Hide loading state and show error
                 document.getElementById('loading-container').style.display = 'none';
