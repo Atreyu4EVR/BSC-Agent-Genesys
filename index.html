@@ -1,317 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BSC Agent Chat Interface</title>
-
-    <!-- n8n Chat CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
-
-    <!-- Ensure iframe compatibility -->
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors *;">
-
-    <style>
-        /* Reset and base styles for iframe compatibility */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f8f9fa;
-        }
-
-        /* Container for the chat */
-        #chat-container {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-        }
-
-        /* Chat widget container */
-        #n8n-chat {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Custom styling for the chat widget */
-        :root {
-            --chat--color-primary: #0066cc;
-            --chat--color-primary-shade-50: #0052a3;
-            --chat--color-primary-shade-100: #003d7a;
-            --chat--color-secondary: #28a745;
-            --chat--color-secondary-shade-50: #1e7e34;
-            --chat--color-white: #ffffff;
-            --chat--color-light: #f8f9fa;
-            --chat--color-light-shade-50: #e9ecef;
-            --chat--color-light-shade-100: #dee2e6;
-            --chat--color-medium: #6c757d;
-            --chat--color-dark: #343a40;
-            --chat--color-disabled: #6c757d;
-            --chat--color-typing: #495057;
-
-            --chat--spacing: 1rem;
-            --chat--border-radius: 0.375rem;
-            --chat--transition-duration: 0.2s;
-
-            --chat--window--width: 100%;
-            --chat--window--height: 100%;
-
-            --chat--header-height: auto;
-            --chat--header--padding: var(--chat--spacing);
-            --chat--header--background: var(--chat--color-primary);
-            --chat--header--color: var(--chat--color-white);
-            --chat--header--border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-
-            --chat--heading--font-size: 1.25rem;
-            --chat--subtitle--font-size: 0.875rem;
-            --chat--subtitle--line-height: 1.5;
-
-            --chat--textarea--height: 60px;
-
-            --chat--message--font-size: 0.875rem;
-            --chat--message--padding: 0.75rem;
-            --chat--message--border-radius: var(--chat--border-radius);
-            --chat--message-line-height: 1.5;
-            --chat--message--bot--background: var(--chat--color-white);
-            --chat--message--bot--color: var(--chat--color-dark);
-            --chat--message--bot--border: 1px solid var(--chat--color-light-shade-100);
-            --chat--message--user--background: var(--chat--color-primary);
-            --chat--message--user--color: var(--chat--color-white);
-            --chat--message--user--border: none;
-            --chat--message--pre--background: rgba(0, 0, 0, 0.05);
-
-            --chat--toggle--background: var(--chat--color-primary);
-            --chat--toggle--hover--background: var(--chat--color-primary-shade-50);
-            --chat--toggle--active--background: var(--chat--color-primary-shade-100);
-            --chat--toggle--color: var(--chat--color-white);
-            --chat--toggle--size: 60px;
-        }
-
-        /* Loading state */
-        .loading-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f8f9fa;
-            font-family: inherit;
-        }
-
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e3e3e3;
-            border-top: 4px solid #0066cc;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .loading-text {
-            color: #6c757d;
-            font-size: 14px;
-        }
-
-        /* Error state */
-        .error-container {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f8f9fa;
-            font-family: inherit;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .error-icon {
-            font-size: 48px;
-            color: #dc3545;
-            margin-bottom: 16px;
-        }
-
-        .error-title {
-            color: #dc3545;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .error-message {
-            color: #6c757d;
-            font-size: 14px;
-            line-height: 1.5;
-            max-width: 400px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>BSC Agent Chat</title>
+  <style>
+    .feedback-buttons {
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+    }
+    .feedback-buttons button {
+      font-size: 1.2em;
+      cursor: pointer;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 2px 8px;
+      transition: background 0.2s;
+    }
+    .feedback-buttons button:hover {
+      background: #e0e0e0;
+    }
+    .feedback-confirmation {
+      font-size: 0.9em;
+      color: #3b873e;
+      margin-left: 5px;
+    }
+  </style>
 </head>
-
 <body>
-    <!-- Loading state -->
-    <div id="loading-container" class="loading-container">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Initializing BSC Agent...</div>
-    </div>
+  <div id="n8n-chat"></div>
 
-    <!-- Error state -->
-    <div id="error-container" class="error-container">
-        <div class="error-icon">⚠️</div>
-        <div class="error-title">Chat Unavailable</div>
-        <div class="error-message">
-            Unable to initialize the chat widget. Please check your webhook configuration and try again.
-        </div>
-    </div>
+  <script src="https://cdn.jsdelivr.net/npm/@n8n/chat@1"></script>
+  <script>
+    // Initialize n8n chat
+    const chat = new window.N8NChat({
+      webhookUrl: 'https://byui.app.n8n.cloud/webhook/13348d82-88d3-447e-90d4-7b6db9f79280/chat', // Replace with your chat webhook
+      containerSelector: '#n8n-chat'
+    });
 
-    <!-- Chat container -->
-    <div id="chat-container">
-        <div id="n8n-chat"></div>
-    </div>
+    // Helper to create feedback buttons
+    function createFeedbackButtons(messageEl, messageId) {
+      // Avoid adding feedback twice
+      if (messageEl.querySelector('.feedback-buttons')) return;
 
-    <!-- Configuration script -->
-    <script>
-        // Configuration object - modify these values as needed
-        const chatConfig = {
-            // Replace with your actual n8n webhook URL
-            webhookUrl: 'https://byui.app.n8n.cloud/webhook/13348d82-88d3-447e-90d4-7b6db9f79280/chat',
+      const feedbackDiv = document.createElement('div');
+      feedbackDiv.className = 'feedback-buttons';
 
-            // Additional configuration options
-            mode: 'fullscreen',
-            showWelcomeScreen: true,
-            chatInputKey: 'chatInput',
-            chatSessionKey: 'sessionId',
-            defaultLanguage: 'en',
+      const upBtn = document.createElement('button');
+      upBtn.textContent = '👍';
+      upBtn.onclick = () => sendFeedback(messageId, 'positive', feedbackDiv);
 
-            // Custom initial messages
-            initialMessages: [
-                'Hello! 👋 I\'m the BSC Agent. How can I help you today?'
-            ],
+      const downBtn = document.createElement('button');
+      downBtn.textContent = '👎';
+      downBtn.onclick = () => sendFeedback(messageId, 'negative', feedbackDiv);
 
-            // Custom i18n configuration
-            i18n: {
-                en: {
-                    title: 'BSC Agent 💬',
-                    subtitle: "I'm here to help with your questions!",
-                    footer: 'Powered by n8n',
-                    getStarted: 'Start Conversation',
-                    inputPlaceholder: 'Type your message here...',
-                },
-            },
+      feedbackDiv.appendChild(upBtn);
+      feedbackDiv.appendChild(downBtn);
+      messageEl.appendChild(feedbackDiv);
+    }
 
-            // Webhook configuration
-            webhookConfig: {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            },
+    // Function to send feedback to n8n webhook
+    function sendFeedback(messageId, rating, feedbackDiv) {
+      fetch('https://YOUR_N8N_INSTANCE/webhook/feedback', { // <-- CHANGE THIS
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          messageId,
+          rating,
+          timestamp: new Date().toISOString()
+        })
+      }).then(() => {
+        feedbackDiv.innerHTML = '<span class="feedback-confirmation">Thank you for your feedback!</span>';
+      }).catch(() => {
+        feedbackDiv.innerHTML = '<span class="feedback-confirmation" style="color:#a33;">Error sending feedback.</span>';
+      });
+    }
 
-            // Metadata to be sent with each request
-            metadata: {
-                source: 'genesys-cloud-iframe',
-                timestamp: new Date().toISOString()
-            }
-        };
-
-        // Function to get webhook URL from URL parameters or configuration
-        function getWebhookUrl() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const webhookFromParam = urlParams.get('webhookUrl');
-
-            if (webhookFromParam) {
-                return decodeURIComponent(webhookFromParam);
-            }
-
-            return chatConfig.webhookUrl;
-        }
-
-        // Function to initialize the chat
-        async function initializeChat() {
-            try {
-                const webhookUrl = getWebhookUrl();
-
-                // Validate webhook URL
-                if (!webhookUrl || webhookUrl === 'YOUR_PRODUCTION_WEBHOOK_URL') {
-                    throw new Error('Webhook URL not configured');
-                }
-
-                // Update configuration with the webhook URL
-                const finalConfig = {
-                    ...chatConfig,
-                    webhookUrl: webhookUrl
-                };
-
-                // Wait for the n8n chat module to load
-                const { createChat } = await import('https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js');
-
-                // Create the chat widget
-                createChat(finalConfig);
-
-                // Hide loading state
-                document.getElementById('loading-container').style.display = 'none';
-
-                // Log successful initialization
-                console.log('BSC Agent Chat initialized successfully', {
-                    webhookUrl: webhookUrl,
-                    mode: finalConfig.mode
-                });
-
-            } catch (error) {
-                console.error('Failed to initialize BSC Agent chat:', error);
-
-                // Hide loading state and show error
-                document.getElementById('loading-container').style.display = 'none';
-                document.getElementById('error-container').style.display = 'flex';
-                document.getElementById('chat-container').style.display = 'none';
-            }
-        }
-
-        // Initialize chat when DOM is loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeChat);
-        } else {
-            initializeChat();
-        }
-
-        // Handle iframe communication if needed
-        window.addEventListener('message', function (event) {
-            // Add any iframe communication logic here if needed
-            // For example, to receive configuration updates from parent window
-            if (event.data && event.data.type === 'updateConfig') {
-                console.log('Received config update:', event.data.config);
-                // Handle configuration updates from parent frame
-            }
-        });
-
-        // Notify parent frame that chat is ready
-        window.addEventListener('load', function () {
-            if (window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'chatReady',
-                    timestamp: new Date().toISOString()
-                }, '*');
-            }
-        });
-    </script>
+    // Observe chat container for new AI messages
+    const chatContainer = document.querySelector('#n8n-chat');
+    const observer = new MutationObserver(() => {
+      // Select all AI messages that don't yet have feedback
+      document.querySelectorAll('.n8n-chat-message[data-sender="ai"]:not([data-feedback-ready])').forEach(msgEl => {
+        // Mark as processed
+        msgEl.setAttribute('data-feedback-ready', 'true');
+        // Use a timestamp or hash as a messageId (or enhance to use your own unique IDs)
+        const messageId = msgEl.dataset.messageId || (
+          msgEl.querySelector('.n8n-chat-message-content')
+            ? msgEl.querySelector('.n8n-chat-message-content').innerText.slice(0,32)
+            : (Date.now() + Math.random().toString(16).slice(2))
+        );
+        createFeedbackButtons(msgEl, messageId);
+      });
+    });
+    observer.observe(chatContainer, { childList: true, subtree: true });
+  </script>
 </body>
-
 </html>
