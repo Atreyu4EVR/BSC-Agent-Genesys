@@ -6,11 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BSC Agent Chat Interface</title>
 
-    <!-- n8n Chat CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+    <!-- Enhanced CSP for iframe compatibility -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; frame-ancestors *; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https: wss:;">
 
-    <!-- Ensure iframe compatibility -->
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors *;">
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+
+    <!-- n8n Chat CSS with fallback loading -->
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" crossorigin="anonymous" />
+
+    <!-- Backup CSS loading via JavaScript if link fails -->
+    <script>
+        // Ensure CSS loads in iframe context
+        (function () {
+            const link = document.querySelector('link[href*="@n8n/chat"]');
+            link.onerror = function () {
+                console.warn('CSS failed to load via link tag, trying JavaScript...');
+                const style = document.createElement('link');
+                style.rel = 'stylesheet';
+                style.href = 'https://cdn.jsdelivr.net/npm/@n8n/chat@latest/dist/style.css';
+                style.crossOrigin = 'anonymous';
+                document.head.appendChild(style);
+            };
+        })();
+    </script>
 
     <style>
         /* Reset and base styles for iframe compatibility */
@@ -26,6 +47,8 @@
             height: 100%;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f8f9fa;
+            overflow: hidden;
+            /* Prevent iframe scrollbars */
         }
 
         /* Container for the chat */
@@ -33,15 +56,40 @@
             width: 100%;
             height: 100vh;
             position: relative;
+            overflow: hidden;
         }
 
         /* Chat widget container */
         #n8n-chat {
             width: 100%;
             height: 100%;
+            position: relative;
         }
 
-        /* Custom styling for the chat widget */
+        /* Force proper styling for iframe context */
+        #n8n-chat * {
+            box-sizing: border-box;
+        }
+
+        /* Ensure chat widget takes full space */
+        .n8n-chat {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            position: relative !important;
+        }
+
+        /* Fix for input rendering in iframe */
+        .n8n-chat-window {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        /* Enhanced custom styling for the chat widget */
         :root {
             --chat--color-primary: #0066cc;
             --chat--color-primary-shade-50: #0052a3;
@@ -163,6 +211,45 @@
             line-height: 1.5;
             max-width: 400px;
         }
+
+        /* Fallback styles for when n8n CSS doesn't load */
+        .chat-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            font-family: inherit;
+        }
+
+        .chat-fallback-header {
+            background: var(--chat--color-primary, #0066cc);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .chat-fallback-content {
+            flex: 1;
+            padding: 1rem;
+            background: #f8f9fa;
+        }
+
+        .chat-fallback-input {
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+            background: white;
+        }
+
+        .chat-fallback-input textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            resize: none;
+            height: 60px;
+            font-family: inherit;
+        }
     </style>
 </head>
 
@@ -194,12 +281,15 @@
             // Replace with your actual n8n webhook URL
             webhookUrl: 'https://byui.app.n8n.cloud/webhook/13348d82-88d3-447e-90d4-7b6db9f79280/chat',
 
-            // Additional configuration options
+            // Enhanced configuration for iframe context
             mode: 'fullscreen',
             showWelcomeScreen: true,
             chatInputKey: 'chatInput',
             chatSessionKey: 'sessionId',
             defaultLanguage: 'en',
+
+            // Force proper dimensions for iframe
+            target: '#n8n-chat',
 
             // Custom initial messages
             initialMessages: [
@@ -211,6 +301,7 @@
                 en: {
                     title: 'BSC Agent',
                     subtitle: "powered by an advanced AI Agent",
+                    footer: '', // Remove "Powered by n8n"
                     getStarted: 'Start',
                     inputPlaceholder: 'Type your message here...',
                 },
@@ -243,7 +334,7 @@
             return chatConfig.webhookUrl;
         }
 
-        // Function to initialize the chat
+        // Enhanced function to initialize the chat with better iframe support
         async function initializeChat() {
             try {
                 const webhookUrl = getWebhookUrl();
@@ -259,11 +350,37 @@
                     webhookUrl: webhookUrl
                 };
 
-                // Wait for the n8n chat module to load
-                const { createChat } = await import('https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js');
+                console.log('Loading n8n chat module...');
 
-                // Create the chat widget
-                createChat(finalConfig);
+                // Enhanced loading with retry mechanism for iframe context
+                let createChat;
+                try {
+                    const module = await import('https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js');
+                    createChat = module.createChat;
+                } catch (importError) {
+                    console.warn('Failed to import via ES modules, trying alternative...', importError);
+                    // Fallback: try loading via script tag
+                    await loadScriptFallback('https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js');
+                    createChat = window.n8nChat?.createChat;
+                }
+
+                if (!createChat) {
+                    throw new Error('Failed to load n8n chat module');
+                }
+
+                console.log('Creating chat widget...');
+
+                // Create the chat widget with enhanced error handling
+                await createChat(finalConfig);
+
+                // Wait a moment for the widget to render
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Verify the widget rendered properly
+                const chatElement = document.querySelector('#n8n-chat');
+                if (!chatElement || !chatElement.querySelector('.n8n-chat')) {
+                    throw new Error('Chat widget failed to render properly');
+                }
 
                 // Hide loading state
                 document.getElementById('loading-container').style.display = 'none';
@@ -271,8 +388,20 @@
                 // Log successful initialization
                 console.log('BSC Agent Chat initialized successfully', {
                     webhookUrl: webhookUrl,
-                    mode: finalConfig.mode
+                    mode: finalConfig.mode,
+                    inIframe: window !== window.parent
                 });
+
+                // Force a style refresh for iframe context
+                if (window !== window.parent) {
+                    setTimeout(() => {
+                        const chatContainer = document.querySelector('.n8n-chat');
+                        if (chatContainer) {
+                            chatContainer.style.width = '100%';
+                            chatContainer.style.height = '100%';
+                        }
+                    }, 1000);
+                }
 
             } catch (error) {
                 console.error('Failed to initialize BSC Agent chat:', error);
@@ -284,6 +413,19 @@
             }
         }
 
+        // Fallback script loading function
+        function loadScriptFallback(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.type = 'module';
+                script.crossOrigin = 'anonymous';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
         // Initialize chat when DOM is loaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initializeChat);
@@ -291,23 +433,35 @@
             initializeChat();
         }
 
-        // Handle iframe communication if needed
+        // Enhanced iframe communication
         window.addEventListener('message', function (event) {
             // Add any iframe communication logic here if needed
-            // For example, to receive configuration updates from parent window
             if (event.data && event.data.type === 'updateConfig') {
                 console.log('Received config update:', event.data.config);
                 // Handle configuration updates from parent frame
             }
         });
 
-        // Notify parent frame that chat is ready
+        // Notify parent frame that chat is ready with enhanced info
         window.addEventListener('load', function () {
             if (window.parent !== window) {
                 window.parent.postMessage({
                     type: 'chatReady',
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    dimensions: {
+                        width: window.innerWidth,
+                        height: window.innerHeight
+                    }
                 }, '*');
+            }
+        });
+
+        // Handle resize events for iframe
+        window.addEventListener('resize', function () {
+            const chatContainer = document.querySelector('.n8n-chat');
+            if (chatContainer) {
+                chatContainer.style.width = '100%';
+                chatContainer.style.height = '100%';
             }
         });
     </script>
