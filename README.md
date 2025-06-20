@@ -4,7 +4,7 @@ This project provides a client-side web chat interface using the [n8n chat widge
 
 ## 🚀 Features
 
-- **Iframe-Ready**: Optimized for embedding in Genesys Cloud iframes
+- **Iframe-Ready**: Optimized for embedding and loading in Genesys Cloud iframes
 - **Fully Configurable**: Easy configuration through external config file
 - **Error Handling**: Robust error handling with user-friendly messages
 - **Status Indicators**: Visual status indicators for connection state
