@@ -274,54 +274,11 @@
         <div id="n8n-chat"></div>
     </div>
 
+    <!-- Load external configuration -->
+    <script src="config.js"></script>
+
     <!-- Configuration script -->
     <script>
-        // Configuration object - modify these values as needed
-        const chatConfig = {
-            // Replace with your actual n8n webhook URL
-            webhookUrl: 'https://byui.app.n8n.cloud/webhook/13348d82-88d3-447e-90d4-7b6db9f79280/chat',
-
-            // Enhanced configuration for iframe context
-            mode: 'fullscreen',
-            showWelcomeScreen: true,
-            chatInputKey: 'chatInput',
-            chatSessionKey: 'sessionId',
-            defaultLanguage: 'en',
-
-            // Force proper dimensions for iframe
-            target: '#n8n-chat',
-
-            // Custom initial messages
-            initialMessages: [
-                'Hello! 👋 I\'m the BSC Agent. How can I help you today?'
-            ],
-
-            // Custom i18n configuration
-            i18n: {
-                en: {
-                    title: 'BSC Agent',
-                    subtitle: "powered by an advanced AI Agent",
-                    footer: '', // Remove "Powered by n8n"
-                    getStarted: 'Start',
-                    inputPlaceholder: 'Type your message here...',
-                },
-            },
-
-            // Webhook configuration
-            webhookConfig: {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            },
-
-            // Metadata to be sent with each request
-            metadata: {
-                source: 'genesys-cloud-iframe',
-                timestamp: new Date().toISOString()
-            }
-        };
-
         // Function to get webhook URL from URL parameters or configuration
         function getWebhookUrl() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -331,7 +288,7 @@
                 return decodeURIComponent(webhookFromParam);
             }
 
-            return chatConfig.webhookUrl;
+            return window.n8nChatConfig?.webhookUrl || 'YOUR_PRODUCTION_WEBHOOK_URL';
         }
 
         // Enhanced function to initialize the chat with better iframe support
@@ -344,10 +301,20 @@
                     throw new Error('Webhook URL not configured');
                 }
 
-                // Update configuration with the webhook URL
+                // Use external config and merge with iframe-specific settings
                 const finalConfig = {
-                    ...chatConfig,
-                    webhookUrl: webhookUrl
+                    ...window.n8nChatConfig,
+                    webhookUrl: webhookUrl,
+                    mode: 'fullscreen', // Ensure fullscreen for iframe
+                    target: '#n8n-chat', // Ensure proper target
+
+                    // Enhanced metadata with iframe info
+                    metadata: {
+                        ...window.n8nChatConfig?.metadata,
+                        source: 'genesys-cloud-iframe',
+                        timestamp: new Date().toISOString(),
+                        inIframe: window !== window.parent
+                    }
                 };
 
                 console.log('Loading n8n chat module...');
@@ -401,6 +368,14 @@
                             chatContainer.style.height = '100%';
                         }
                     }, 1000);
+                }
+
+                // Send Genesys Cloud event if enabled
+                if (window.genesysCloudConfig?.enableGenesysIntegration) {
+                    window.genesysCloudConfig.sendGenesysEvent('chatReady', {
+                        timestamp: new Date().toISOString(),
+                        config: finalConfig.mode
+                    });
                 }
 
             } catch (error) {

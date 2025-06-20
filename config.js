@@ -30,6 +30,11 @@ window.n8nChatConfig = {
   showWelcomeScreen: true,
 
   /**
+   * Target element for iframe compatibility
+   */
+  target: "#n8n-chat",
+
+  /**
    * Keys for sending data to your n8n workflow
    */
   chatInputKey: "chatInput",
@@ -50,8 +55,9 @@ window.n8nChatConfig = {
    */
   i18n: {
     en: {
-      title: "Support Chat 💬",
-      subtitle: "We're here to help you. Ask us anything!",
+      title: "BSC Agent 💬",
+      subtitle: "powered by an advanced AI Agent",
+      footer: "",
       getStarted: "Start",
       inputPlaceholder: "Type your message here...",
     },
