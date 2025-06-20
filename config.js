@@ -52,8 +52,8 @@ window.n8nChatConfig = {
     en: {
       title: "Support Chat 💬",
       subtitle: "We're here to help you. Ask us anything!",
-      footer: "Powered by n8n",
-      getStarted: "Start Conversation",
+      footer: " ",
+      getStarted: "Start",
       inputPlaceholder: "Type your message here...",
     },
   },
